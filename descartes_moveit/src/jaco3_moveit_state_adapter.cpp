@@ -100,7 +100,7 @@ bool descartes_moveit::Jaco3MoveitStateAdapter::getAllIK(const Eigen::Affine3d& 
       Eigen::Matrix<double, 1, 7, Eigen::RowMajor> q_soln_i = q_solns.row(i);
       std::vector<double> sol(q_soln_i.data(), q_soln_i.data() + q_soln_i.size());
       // so we can check the solutions
-      if (isValid(sol))
+      if (isValid(sol) & !hasNaN(sol))
       {
         // and add them to the list of valid solutions
         joint_poses.push_back(std::move(sol));
@@ -183,4 +183,13 @@ bool descartes_moveit::Jaco3MoveitStateAdapter::computeJaco3Transforms()
   CONSOLE_BRIDGE_logInform("Jaco3MoveitStateAdapter: initialized with IKFast tool frame '%s' and base frame '%s'.",
             jaco3_tool_frame.c_str(), jaco3_base_frame.c_str());
   return true;
+}
+
+bool descartes_moveit::Jaco3MoveitStateAdapter::hasNaN(const std::vector<double> sol) const{
+  for(const auto&val : sol){
+    if(std::isnan(val)){
+      return true;
+    }
+  }
+  return false;
 }

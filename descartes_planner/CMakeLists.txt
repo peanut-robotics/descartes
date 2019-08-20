@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   descartes_trajectory
   pluginlib
   roscpp
+  angles
 )
 
 find_package(Boost REQUIRED)
@@ -50,6 +51,7 @@ include_directories(include
                     ${catkin_INCLUDE_DIRS}
                     ${Boost_INCLUDE_DIRS}
                     ${EIGEN3_INCLUDE_DIRS}
+                    ${angles_INCLUDE_DIRS}
 )
 
 ## DescartesTrajectoryPt lib

@@ -35,6 +35,8 @@ public:
    */
   void setState(const moveit::core::RobotState& state);
 
+  bool hasNaN(const std::vector<double> sol) const;
+  
 protected:
   bool computeJaco3Transforms();
 
