@@ -216,7 +216,7 @@ bool CartTrajectoryPt::computeCartesianPoses(EigenSTL::vector_Affine3d &poses) c
 {
   EigenSTL::vector_Affine3d sampled_wobj_pts = uniform(wobj_pt_, orient_increment_, pos_increment_);
   EigenSTL::vector_Affine3d sampled_tool_pts = uniform(tool_pt_, orient_increment_, pos_increment_);
-
+ 
   poses.clear();
   poses.reserve(sampled_wobj_pts.size() * sampled_tool_pts.size());
   for (size_t wobj_pt = 0; wobj_pt < sampled_wobj_pts.size(); ++wobj_pt)
@@ -397,6 +397,9 @@ void CartTrajectoryPt::getJointPoses(const RobotModel &model, std::vector<std::v
   }
   else
   {
+    if (joint_poses.size() == 1){
+      ROS_ERROR_STREAM("Just got 1 sol");
+    }
     ROS_DEBUG_STREAM("Get joint poses, sampled: " << poses.size() << ", with " << joint_poses.size()
                                                   << " valid(returned) poses");
   }
