@@ -53,8 +53,8 @@ bool descartes_moveit::Jaco3MoveitStateAdapter::initialize(const std::string& ro
 bool descartes_moveit::Jaco3MoveitStateAdapter::sampleRedundantJoint(std::vector<double>& sampled_joint_vals) const
 {
   // all discretized
-  double joint_dscrt = 0.1;
-  double joint_min = -3.14;
+  double joint_dscrt = 0.005;
+  double joint_min = 0;
   double joint_max = 3.14;
   size_t steps = std::ceil((joint_max - joint_min) / joint_dscrt);
   for (size_t i = 0; i < steps; i++)
