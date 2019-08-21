@@ -238,7 +238,7 @@ void PlanningGraph::computeAndAssignEdges(const std::size_t start_idx, const std
   }
   else if (!custom_cost_function_ && !tm.isSpecified())
   {
-    DefaultEdgesWithoutTime builder (start_size, end_size, dof);
+    PeanutEdgesWithoutTime builder (start_size, end_size, dof);
     edges = calculateEdgeWeights(builder, joints1, joints2, dof, b);
   }
   else

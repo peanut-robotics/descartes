@@ -147,6 +147,32 @@ struct CustomEdgesWithoutTime : public DefaultEdgesWithoutTime
   descartes_planner::CostFunction custom_cost_fn; // TODO: Header doesn't stand on its own
 };
 
+struct PeanutEdgesWithoutTime : public DefaultEdgesWithoutTime
+{
+  PeanutEdgesWithoutTime( const size_t n_start,
+                          const size_t n_end,
+                          const size_t dof)
+    : DefaultEdgesWithoutTime(n_start, n_end, dof)
+  {}
+
+  inline void consider(const double* const start, const double* const stop, const size_t index) noexcept
+  {
+    double cost = 0.0;
+    double step_cost = 0;
+
+    for (size_t i = 0; i < dof_; ++i){
+      step_cost = std::abs(start[i] - stop[i]);
+      if (step_cost > 1.5){
+        step_cost = 1000;
+      }
+      cost += std::abs(step_cost);
+    }
+    results_[layer_][count_].cost = cost;
+    results_[layer_][count_].idx = static_cast<unsigned>(index);
+    count_++;
+  }
+};
+
 }
 
 #endif // PLANNING_GRAPH_EDGE_POLICY_H
