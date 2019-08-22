@@ -223,6 +223,21 @@ public:
     rungs_.clear();
   }
 
+  /**
+   * @brief Get total number of EdgeLists in graph
+   */
+  int getNumEdgeLists() const{
+    int n = 0;
+    // For every rung
+    for (unsigned int i = 0; i < rungs_.size(); i++){
+      // For every EdgeList or Node
+      for (unsigned int j = 0; j < rungs_[i].edges.size(); j++){
+          n += 1;
+      }
+    }
+    return n;
+  }
+
 private:
   const size_type dof_;
   std::vector<Rung> rungs_;
