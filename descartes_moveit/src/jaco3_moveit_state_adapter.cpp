@@ -250,7 +250,7 @@ bool descartes_moveit::Jaco3MoveitStateAdapter::isInCollision(const std::vector<
       collision_detection::CollisionResult::ContactMap::const_iterator it;
       for ( it = collision_result.contacts.begin(); it != collision_result.contacts.end(); it++ )
       {
-        ROS_WARN_STREAM_THROTTLE(0.5, "Contact between: "<<it->first.first.c_str()<<" and "<<it->first.second.c_str());
+        ROS_ERROR_STREAM_THROTTLE(0.5, "Contact between: "<<it->first.first.c_str()<<" and "<<it->first.second.c_str());
       }
     }
 
