@@ -62,6 +62,9 @@ bool PlanningGraph::insertGraph(const std::vector<TrajectoryPtPtr>& points)
     graph_.assignRung(i, points[i]->getID(), points[i]->getTiming(), all_joint_sols[i]);
   }
 
+  // Print number of edges. (This call takes ~20ms for a long path)
+  ROS_DEBUG_STREAM("Total number of nodes in all rungs: "<<graph_.getNumEdgeLists());
+ 
   // now we have a graph with data in the 'rungs' and we need to compute the edges
   #pragma omp parallel for
   for (std::size_t i = 0; i < graph_.size() - 1; ++i)
