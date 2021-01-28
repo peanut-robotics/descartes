@@ -227,8 +227,9 @@ bool descartes_moveit::Jaco3MoveitStateAdapter::updatePlanningScene(planning_sce
   acm_.setEntry(collision_robot_links_, collision_arm_links_, false);
 
   // Initialize collision request message. 
-  // Setting this to false could descrease collision checking speed
+  // Setting contacts to false could descrease collision checking speed
   collision_request_.contacts = true;
+  collision_request_.group_name = "arm";
   return true;
 }
 
