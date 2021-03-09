@@ -53,6 +53,8 @@ protected:
    */
   virtual void setCollisionLinks(std::vector<std::string> arm_links, std::vector<std::string> robot_links);
 
+  void print_solution_vector(const std::vector<std::vector<double>> qs) const;
+
   /**
    * The IKFast implementation commonly solves between 'base_link' of a robot
    * and 'tool0'. We will commonly want to take advantage of an additional

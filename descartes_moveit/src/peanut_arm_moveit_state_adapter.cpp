@@ -85,10 +85,33 @@ bool descartes_moveit::PeanutMoveitStateAdapter::getAllIK(const Eigen::Isometry3
       joint_poses.push_back(std::move(joint_config));
     }
   }
-  if (joint_poses.size() == 0){
-    ROS_DEBUG_STREAM_THROTTLE(0.25, "Could not find ik");
+
+  if (true){
+    if (joint_poses.size() == 0){
+      ROS_ERROR("Could not find ik");
+      ROS_ERROR("Number of solution before isValid check " << potential_joint_configs.size());
+      ROS_ERROR("Number of solution after isValid check " << joint_poses.size())
+      Eigen::Matrix<double, 3,1> pos = tool_pose.translation();
+      Eigen::Matrix<double, 3,3> rot = tool_pose.rotation();
+      Eigen::Quaterniond rot_q = Eigen::Quaterniond(rot);
+      ROS_ERROR_STREAM("x: " << std::to_string(pos(0)) << ", y: " << std::to_string(pos(1)) << ", z:" << std::to_string(pos(2)));
+      ROS_ERROR_STREAM("quaternion w: " << rot_q.w() << " x: " << rot_q.x() << ", y: " << rot_q.y() << ", z: " << rot_q.z());
+
+      std::vector<std::vector<double>> potential_joint_configs2;
+      bool success2 = arm_kinematics::ik(tool_pose, potential_joint_configs2, false);
+      ROS_ERROR("Checking IK without limits");
+      ROS_ERROR_STREAM("Solution size: " << potential_joint_configs2.size());
+      // std::cout<< "\nAll solutions" << std::endl;
+      // print_solution_vector(potential_joint_configs2);
+    }
   }
   return joint_poses.size() > 0;
+}
+
+void descartes_moveit::PeanutMoveitStateAdapter::print_solution_vector(const std::vector<std::vector<double>> qs) const{
+    for(unsigned int i = 0; i < qs.size(); i++){
+        std::cout<<qs[i][0] << ", " << qs[i][1] << ", " << qs[i][2] << ", " << qs[i][3] << ", " << qs[i][4]<<std::endl;
+    }
 }
 
 bool descartes_moveit::PeanutMoveitStateAdapter::getIK(const Eigen::Isometry3d& pose,
@@ -190,6 +213,12 @@ void descartes_moveit::PeanutMoveitStateAdapter::setCollisionLinks(std::vector<s
 }
 
 bool descartes_moveit::PeanutMoveitStateAdapter::isValid(const std::vector<double>& joint_pose) const{
+  if(hasNaN(joint_pose)){
+    ROS_INFO("Has Nan");
+  }
+  if(!descartes_moveit::MoveitStateAdapter::isValid(joint_pose)){
+    ROS_INFO("Not valid");
+  }
   return !hasNaN(joint_pose) && descartes_moveit::MoveitStateAdapter::isValid(joint_pose);
 }
 
