@@ -88,9 +88,9 @@ bool descartes_moveit::PeanutMoveitStateAdapter::getAllIK(const Eigen::Isometry3
 
   if (true){
     if (joint_poses.size() == 0){
-      ROS_ERROR("Could not find ik");
-      ROS_ERROR("Number of solution before isValid check " << potential_joint_configs.size());
-      ROS_ERROR("Number of solution after isValid check " << joint_poses.size())
+      ROS_ERROR_STREAM("Could not find ik");
+      ROS_ERROR_STREAM("Number of solution before isValid check " << potential_joint_configs.size());
+      ROS_ERROR_STREAM("Number of solution after isValid check " << joint_poses.size());
       Eigen::Matrix<double, 3,1> pos = tool_pose.translation();
       Eigen::Matrix<double, 3,3> rot = tool_pose.rotation();
       Eigen::Quaterniond rot_q = Eigen::Quaterniond(rot);
@@ -99,10 +99,10 @@ bool descartes_moveit::PeanutMoveitStateAdapter::getAllIK(const Eigen::Isometry3
 
       std::vector<std::vector<double>> potential_joint_configs2;
       bool success2 = arm_kinematics::ik(tool_pose, potential_joint_configs2, false);
-      ROS_ERROR("Checking IK without limits");
+      ROS_ERROR_STREAM("Checking IK without limits");
       ROS_ERROR_STREAM("Solution size: " << potential_joint_configs2.size());
-      // std::cout<< "\nAll solutions" << std::endl;
-      // print_solution_vector(potential_joint_configs2);
+      std::cout<< "\nAll solutions" << std::endl;
+      print_solution_vector(potential_joint_configs2);
     }
   }
   return joint_poses.size() > 0;
