@@ -47,6 +47,10 @@ bool descartes_moveit::PeanutMoveitStateAdapter::initialize(const std::string& r
     return false;
   }
 
+  ROS_INFO_STREAM("PeanutMoveitStateAdapter::initialize: " << group_name << " " << "tcp_frame " << tcp_frame);
+  // can initialize here to set spray vs wipe vs other?
+  this->tool_frame_ = tcp_frame;
+
   // Get joint limits
   ros::NodeHandle nh;
   std::vector<std::vector<double>> joint_limits;
@@ -86,13 +90,15 @@ bool descartes_moveit::PeanutMoveitStateAdapter::sampleRedundantJoint(std::vecto
 bool descartes_moveit::PeanutMoveitStateAdapter::getAllIK(const Eigen::Isometry3d& pose,
                                                           std::vector<std::vector<double>>& joint_poses) const
 {
-  joint_poses.clear();
+  if (this->tool_frame_ == "sprayer_link") {
+    return this->getAllIKSprayer(pose, joint_poses);
+  }
+  if (this->tool_frame_ == "brush_contact_link") {
+    return this->getAllIKBrushContact(pose, joint_poses);
+  }
 
-  // Transform input pose (given in reference frame world to be reached by the tip, so transform to base and tool)
-  // math: pose = H_w_b * tool_pose * H_tip_tool0 (pose = H_w_pose; tool_pose = H_b_tip, with tip st tool is at pose)
-  // Eigen::Isometry3d tool_pose = world_to_base_.frame_inv * pose * tool0_to_tip_.frame;
-  // for now disable the above since we're just going to feed it in exactly what it needs:
-  Eigen::Isometry3d tool_pose = pose;
+  // default implemenetation
+  joint_poses.clear();
 
   // bool ik(const Eigen::Isometry3d &pose, std::vector<std::vector<double> > &qs,
   //           const std::vector<std::string> joint_names, const std::vector<float> min_pos, const std::vector<float> max_pos,
@@ -100,8 +106,31 @@ bool descartes_moveit::PeanutMoveitStateAdapter::getAllIK(const Eigen::Isometry3
   //           const bool check_cord_wrap=false,
   //           const bool debug=false);
 
+  // IK is done in eff pose
+  const auto raw_pos = pose.translation();
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Raw pos " << raw_pos[0] << " " << raw_pos[1] << " " << raw_pos[2]);
+
+  const auto pos = tool0_to_tip_.frame.translation();
+
+  const auto rot = tool0_to_tip_.frame.rotation();
+  Eigen::Quaterniond q_eff_to_sprayer(rot);
+
+  Eigen::Isometry3d eff_pose = pose * tool0_to_tip_.frame_inv;
+  const auto eff_rot = eff_pose.rotation();
+  Eigen::Quaterniond q_eff(eff_rot);
+
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Eff Q " << q_eff.x() << " " << q_eff.y() << " " << q_eff.z() << " " << q_eff.w());
+  const auto eff_pos = eff_pose.translation();
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Eff pos " << eff_pos[0] << " " << eff_pos[1] << " " << eff_pos[2]);
+
   std::vector<std::vector<double>> potential_joint_configs;
-  bool success = arm_kinematics::ik(tool_pose, potential_joint_configs, joint_names_, min_pos_, max_pos_, true, false);
+  bool success = arm_kinematics::ik(eff_pose, potential_joint_configs, joint_names_, min_pos_, max_pos_, true, false);
+
+  if (!success){
+    ROS_WARN_STREAM("Could not find ik");
+    // this is not necessarily a fatal error, as Descartes will try many orientations
+    return false;
+  }
 
   for(auto& joint_config : potential_joint_configs){
     if(isValid(joint_config)){
@@ -109,7 +138,133 @@ bool descartes_moveit::PeanutMoveitStateAdapter::getAllIK(const Eigen::Isometry3
     }
   }
   if (joint_poses.size() == 0){
-    ROS_DEBUG_STREAM_THROTTLE(0.25, "Could not find ik");
+    ROS_WARN_STREAM_THROTTLE(0.25, "getAllIK(): Invalid joints");
+  }
+  return joint_poses.size() > 0;
+}
+
+bool descartes_moveit::PeanutMoveitStateAdapter::getAllIKSprayer(const Eigen::Isometry3d& pose,
+                                                          std::vector<std::vector<double>>& joint_poses) const
+{
+  joint_poses.clear();
+
+  // bool ik(const Eigen::Isometry3d &pose, std::vector<std::vector<double> > &qs,
+  //           const std::vector<std::string> joint_names, const std::vector<float> min_pos, const std::vector<float> max_pos,
+  //           const bool check_limits=true,
+  //           const bool check_cord_wrap=false,
+  //           const bool debug=false);
+
+  // IK is done in eff pose
+  const auto raw_pos = pose.translation();
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Raw pos " << raw_pos[0] << " " << raw_pos[1] << " " << raw_pos[2]);
+
+  const auto pos = tool0_to_tip_.frame.translation();
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Eff to sprayer " << pos[0] << " " << pos[1] << " " << pos[2]);
+
+  const auto rot = tool0_to_tip_.frame.rotation();
+  Eigen::Quaterniond q_eff_to_sprayer(rot);
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Q Eff to sprayer " << q_eff_to_sprayer.x() << " " << q_eff_to_sprayer.y() << " " << q_eff_to_sprayer.z() << " " << q_eff_to_sprayer.w());
+
+  Eigen::Isometry3d eff_pose = pose * tool0_to_tip_.frame_inv;
+  const auto eff_rot = eff_pose.rotation();
+  Eigen::Quaterniond q_eff(eff_rot);
+
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Eff Q " << q_eff.x() << " " << q_eff.y() << " " << q_eff.z() << " " << q_eff.w());
+  const auto eff_pos = eff_pose.translation();
+  ROS_DEBUG_STREAM_THROTTLE(0.25, "Eff pos " << eff_pos[0] << " " << eff_pos[1] << " " << eff_pos[2]);
+
+  std::vector<std::vector<double>> potential_joint_configs;
+  bool success = arm_kinematics::ik(eff_pose, potential_joint_configs, joint_names_, min_pos_, max_pos_, true, false);
+
+  if (!success){
+    ROS_WARN_STREAM("Could not find ik");
+    // this is not necessarily a fatal error, as Descartes will try many orientations
+    return false;
+  }
+
+  for(auto& joint_config : potential_joint_configs){
+    if(isValid(joint_config)){
+      joint_poses.push_back(std::move(joint_config));
+    }
+  }
+  if (joint_poses.size() == 0){
+    ROS_DEBUG_STREAM_THROTTLE(0.25, "getAllIKSprayer(): Invalid joints");
+  }
+  return joint_poses.size() > 0;
+}
+
+bool descartes_moveit::PeanutMoveitStateAdapter::getAllIKBrushContact(const Eigen::Isometry3d& pose,
+                                                          std::vector<std::vector<double>>& joint_poses) const
+{
+  double brush_pitch = 10.0 * M_PI / 180.0; // MUST be set to match table_plannner TODO: should be in MoveArmGoal
+  ros::NodeHandle nh;
+  if (!nh.getParam("brush_pitch", brush_pitch)) { // xx!! should be /brush_pitch ?
+    ROS_DEBUG_STREAM_THROTTLE(1.0, "Unable to load brush_pitch param. Using " << brush_pitch);
+  }
+
+  // const auto contact_pos = pose.translation();
+  const auto rot = pose.rotation();
+  Eigen::Vector3d rpy = rot.eulerAngles(0, 1, 2);
+  // ROS_INFO_STREAM("brush rpy " << rpy.x() << " " << rpy.y() << " " << rpy.z());
+  Eigen::Quaterniond q_yaw(Eigen::AngleAxisd(rpy.z(), Eigen::Vector3d::UnitZ())); // effector yaw
+  // brush_yaw = pose roll
+  const double brush_yaw = rpy.x();
+
+  // implement q_eff_for_brush_yaw from arm_kinematics.py, probably not efficient
+  const double deg45 = 45.0 * M_PI / 180.0;
+  Eigen::Quaterniond q_axis_base(Eigen::AngleAxisd(deg45, Eigen::Vector3d::UnitY()));
+  Eigen::Quaterniond q_axis_to_eff(Eigen::AngleAxisd(deg45, Eigen::Vector3d::UnitY()));
+  Eigen::Quaterniond q_axis_to_down(Eigen::AngleAxisd(deg45, Eigen::Vector3d::UnitY()));
+  Eigen::Vector3d facing_axis(cos(brush_yaw), sin(brush_yaw), 0.0);
+  Eigen::Vector3d left_axis = Eigen::Vector3d::UnitZ().cross(facing_axis);
+  Eigen::Quaterniond q_tilt(Eigen::AngleAxisd(brush_pitch, left_axis));
+  Eigen::Quaterniond q_axis = q_tilt * q_axis_to_down * q_axis_base;
+  Eigen::Quaterniond q_eff = q_axis * q_axis_to_eff;
+  q_eff = q_yaw * q_eff;
+
+  // implement compute_eff_to_brush_offsets from TablePlanner.py
+  const double BRUSH_DISC_RADIUS = 0.22;
+  const double BRUSH_AXIS_OFFSET = 0.01; // brush is slightly down the axis
+  const Eigen::Vector3d EFF_TO_AXIS(0.0175, 0.0, 0.0); // effector is slightly above brush axis
+  Eigen::Vector3d eff_to_axis = q_eff * EFF_TO_AXIS;
+  const Eigen::Vector3d AXIS_DIR(0.707, 0.0, 0.707); //axis is midway between effector's Z and X
+  Eigen::Vector3d axis_dir = q_eff * AXIS_DIR;
+  Eigen::Vector3d side_axis = axis_dir.cross(Eigen::Vector3d::UnitZ());
+  side_axis.normalize();
+  Eigen::Vector3d brush_axis = axis_dir.cross(side_axis);
+  if (brush_axis.z() > 0.0) {
+    brush_axis *= -1.0;
+  }
+  auto eff_to_brush = eff_to_axis + BRUSH_DISC_RADIUS * brush_axis + BRUSH_AXIS_OFFSET * axis_dir;
+
+  // ROS_INFO_STREAM("q_eff " << q_eff.x() << " " << q_eff.y() << " " << q_eff.z() << " " << q_eff.w());
+  Eigen::Matrix3d eff_rot(q_eff);
+  Eigen::Vector3d eff_trans(pose.translation() - eff_to_brush);
+  Eigen::Vector3d iscale(1.0, 1.0, 1.0); // identity scale
+  Eigen::Isometry3d eff_pose;
+  eff_pose.fromPositionOrientationScale(eff_trans, eff_rot, iscale);
+  // ROS_INFO_STREAM("eff_pose.translation " << eff_pose.translation().x() << " " << eff_pose.translation().y() << " " << eff_trans.x() << " " << eff_trans.y());
+  Eigen::Quaterniond q_test(eff_pose.rotation());
+  // ROS_INFO_STREAM("eff_pose.rotation " << q_test.x() << " " << q_test.y() << " " << q_test.z() << " " << q_test.w());
+
+  joint_poses.clear();
+  std::vector<std::vector<double>> potential_joint_configs;
+  bool success = arm_kinematics::ik(eff_pose, potential_joint_configs, joint_names_, min_pos_, max_pos_, true, false);
+
+  if (!success){
+    // ROS_WARN_STREAM("Could not find ik");
+    // this is not necessarily a fatal error, as Descartes will try many orientations
+    return false;
+  }
+
+  for(auto& joint_config : potential_joint_configs){
+    // ROS_INFO_STREAM("testing joint config " << joint_config.size());
+    if(isValid(joint_config)){
+      joint_poses.push_back(std::move(joint_config));
+    }
+  }
+  if (joint_poses.size() == 0){
+    ROS_DEBUG_STREAM_THROTTLE(0.25, "getAllIKBrushContact(): Invalid joints");
   }
   return joint_poses.size() > 0;
 }
@@ -133,6 +288,9 @@ bool descartes_moveit::PeanutMoveitStateAdapter::getFK(const std::vector<double>
   const auto& solver = joint_group_->getSolverInstance();
 
   std::vector<std::string> tip_frame = { solver->getTipFrame() };
+
+  ROS_WARN_STREAM_THROTTLE(0.25, "getFK tip_frame " << tip_frame[0]);
+
   std::vector<geometry_msgs::Pose> output;
 
   if (!isValid(joint_pose))
@@ -176,8 +334,9 @@ bool descartes_moveit::PeanutMoveitStateAdapter::computeTransforms()
   }
 
   // calculate frames
-  tool0_to_tip_ = descartes_core::Frame(robot_state_->getFrameTransform(tool_frame_).inverse() *
-                                        robot_state_->getFrameTransform(peanut_tool_frame));
+  tool0_to_tip_ = descartes_core::Frame(robot_state_->getFrameTransform(peanut_tool_frame).inverse() *
+                                        robot_state_->getFrameTransform(tool_frame_));
+  ROS_INFO_STREAM("tool_frame_ " << tool_frame_ << " peanut_tool_frame " << peanut_tool_frame);
 
   world_to_base_ = descartes_core::Frame(world_to_root_.frame * robot_state_->getFrameTransform(robot_base_frame));
 
@@ -216,7 +375,10 @@ bool descartes_moveit::PeanutMoveitStateAdapter::isValid(const std::vector<doubl
   // Logical check on input sizes
   if (joint_group_->getActiveJointModels().size() != joint_pose.size())
   {
-    CONSOLE_BRIDGE_logError("Size of joint pose: %lu doesn't match robot state variable size: %lu",
+    for (const auto& model : joint_group_->getActiveJointModels()) {
+      ROS_INFO_STREAM(model->getName());
+    }
+    CONSOLE_BRIDGE_logError("(peanut) Size of joint pose: %lu doesn't match robot state variable size: %lu",
              static_cast<unsigned long>(joint_pose.size()),
              static_cast<unsigned long>(joint_group_->getActiveJointModels().size()));
     return false;
@@ -227,7 +389,7 @@ bool descartes_moveit::PeanutMoveitStateAdapter::isValid(const std::vector<doubl
     return false;
   }
   if (!isInLimits(joint_pose)) {
-    ROS_WARN_STREAM("invalid joints = " << joint_pose[0] << " " << joint_pose[1] << " " << joint_pose[2]
+    ROS_DEBUG_STREAM("invalid joints = " << joint_pose[0] << " " << joint_pose[1] << " " << joint_pose[2]
                     << " " << joint_pose[3] << " " << joint_pose[4] << " " << joint_pose[5]);
     return false;
   }
